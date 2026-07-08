@@ -1,0 +1,25 @@
+# Research materials and generated review outputs must not be committed.
+research-folder/
+tmp/
+output/
+
+# Local extraction / render artifacts
+*.log
+*.tmp
+*.bak
+~$*
+
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Local Office lock files
+*.docx#
+
+# One-off generated scripts that embed study-specific facts.
+tools/build_precheck_*.py
+tools/build_return_docx_*.py
+
+# Keep generic tools trackable.
+!tools/extract_research_docs.py
+!tools/build_return_docx_from_template.py
