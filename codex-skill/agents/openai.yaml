@@ -1,0 +1,4 @@
+interface:
+  display_name: "倫理申請プレチェック"
+  short_description: "臨床研究申請資料を根拠照合し返却用Wordまで作成"
+  default_prompt: "Use $ethics-precheck to review a clinical research application folder and prepare an evidence-checked return package."
