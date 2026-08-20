@@ -7,6 +7,7 @@ import shutil
 from pathlib import Path
 
 from docx import Document
+from docx.oxml import OxmlElement
 from docx.shared import Pt
 
 
@@ -212,6 +213,13 @@ def clear_cell(cell) -> None:
     cell.text = ""
 
 
+def prevent_row_split(row) -> None:
+    tr_pr = row._tr.get_or_add_trPr()
+    tag = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}cantSplit"
+    if tr_pr.find(tag) is None:
+        tr_pr.append(OxmlElement("w:cantSplit"))
+
+
 def write_footer(cell, text: str) -> None:
     cell.text = ""
     for index, line in enumerate(text.splitlines()):
@@ -250,6 +258,7 @@ def build_docx(template: Path, draft: Path, output: Path) -> None:
         table = doc.tables[0]
         for row_idx in range(len(table.rows)):
             clear_cell(table.cell(row_idx, 1))
+            prevent_row_split(table.rows[row_idx])
 
         for idx, (_item, status, comment) in enumerate(rows):
             if status == "要対応" and comment:
