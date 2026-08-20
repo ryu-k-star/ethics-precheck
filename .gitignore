@@ -2,6 +2,9 @@
 research-folder/
 tmp/
 output/
+outputs/
+cache/
+.precheck-cache/
 
 # Local extraction / render artifacts
 *.log

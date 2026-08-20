@@ -1,2 +1,3 @@
 pdfplumber
+pypdf
 python-docx

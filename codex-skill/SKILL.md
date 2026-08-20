@@ -23,11 +23,25 @@ Perform an evidence-first precheck without replacing the ethics committee's judg
    - `references/rules/r1-cross-document-consistency.md`
    - `references/rules/r2-required-content.md`
    - `references/rules/r3-format-and-word-qa.md`
-   - `references/rules/r4-writing-style.md`
-   - `references/rules/r5-office-standard-text.md`
    - `references/review_quality_playbook.md`
-4. Read `references/workflow.md` for the complete operating contract, required output schemas, resubmission rules, and quality gates.
-5. Do not open historical review outputs before independently applying R1-R3. After drafting, read `references/examples/review_examples_policy.md` only to calibrate tone and length. Treat no historical case as Gold unless independently audited and explicitly human-approved.
+4. Read `references/precheck_v2_workflow.md` for the standard low-token execution path. Read `references/workflow.md` only when the complete operating contract, detailed schemas, resubmission rules, or facility-specific quality gates are needed.
+5. After the evidence findings are fixed, read only the relevant sections of `references/rules/r4-writing-style.md` and `references/rules/r5-office-standard-text.md` needed to draft those findings.
+6. Do not open historical review outputs before independently applying R1-R3. After drafting, read `references/examples/review_examples_policy.md` only to calibrate tone and length. Treat no historical case as Gold unless independently audited and explicitly human-approved.
+
+Keep the split rule files as the source of truth. Do not concatenate the workflow and all rules into one prompt. Load R1-R3 for evidence review, then only the relevant R4/R5 sections for drafting.
+
+## Use the v2 precheck pipeline
+
+For a standard local study folder, start with one deterministic extraction:
+
+```text
+python scripts/precheck_scan.py <study-root> --out <new-output-folder> --cache <cache-folder> --rules references/rules
+```
+
+- The scanner hashes each source and reuses extraction only when the extractor version and source SHA-256 match.
+- It excludes prior `99_プレチェック出力*`, `tmp`, `output(s)`, cache, and `.git` directories from source discovery. It still records a warning when an excluded directory contains PDF/DOCX files so misplaced source documents are visible.
+- Reuse extracted text and the compact fact pack across reviewers. Do not ask each reviewer to rediscover the same document inventory or extract the same pages.
+- Treat cached extraction as a speed optimization, not as an exemption from visual inspection of image-only or layout-dependent pages.
 
 ## Run the review
 
@@ -36,6 +50,7 @@ Perform an evidence-first precheck without replacing the ethics committee's judg
 - List every file, type, version, date, study title, and principal investigator found in the package.
 - Use `scripts/extract_research_docs.py <study-root> --out <temporary-output>` for batch PDF/DOCX extraction when appropriate. Inspect extraction errors and visually inspect image-only or layout-dependent pages; extracted text is not proof of visual completeness.
 - Create a page-addressable fact table covering people and roles, sites, study design, intervention/invasiveness, participant criteria and counts, periods, consent route, samples versus information, processing category, transfers, storage, disposal, future use, costs, compensation, conflicts, and contact details.
+- Complete the G6 timeline gate using `00_timeline_facts.json`: study start/end, target and maximum enrollment, expected enrollment completion, longest follow-up, data lock, analysis duration, and remaining analysis margin. If enrollment speed, follow-up, or analysis duration is absent, do not invent it; identify the missing input and return the feasibility question for human confirmation.
 - If legal or regulatory currency affects a finding, verify the current official Japanese source before relying on it. Record the official source and access date; do not rely on memory or a secondary summary alone.
 
 ### 2. Apply every rule
@@ -50,14 +65,21 @@ Perform an evidence-first precheck without replacing the ethics committee's judg
 
 Create these files in the study output folder:
 
-1. `01_資料一覧.md`
-2. `02_研究種別_仮分類.md`
-3. `03_サブAI別レビュー結果.md`
-4. `04_指摘事項書ドラフト.md`
-5. `05_人間確認事項.md`
-6. `06_ファクトチェック結果.md`
+1. `00_source_manifest.json`
+2. `00_extracted_pages.json`
+3. `00_timeline_facts.json`
+4. `00_rule_ledger.json`
+5. `00_fact_pack.json`
+6. `01_資料一覧.md`
+7. `02_研究種別_仮分類.md`
+8. `03_サブAI別レビュー結果.md`
+9. `04_指摘事項書ドラフト.md`
+10. `05_人間確認事項.md`
+11. `06_ファクトチェック結果.md`
+12. `07_検証結果.json` and `07_検証結果.md`
+13. `08_token_usage.json` when usage totals are available, or an unavailable entry with the reason
 
-Use the schemas in `references/workflow.md`. Cover all seven review domains even when one reviewer handles several domains. If subagents are available, independently assign at least research-plan/ethics review and fact-check/evidence reconciliation. If unavailable, state that fact and the reason in 03 or 06.
+Use the schemas in `references/workflow.md`. Cover all seven review domains even when one reviewer handles several domains. If subagents are available, independently assign at least research-plan/ethics review and fact-check/evidence reconciliation. Give each subagent only its role, the compact fact/timeline pack, assigned rules, and necessary source pages; do not pass the full conversation or every reference file. If subagents are unavailable, state that fact and the reason in 03 or 06.
 
 ### 4. Draft for action
 
@@ -77,6 +99,8 @@ Do not substitute one audit for another:
 
 Do not declare completion when any candidate disappears silently.
 
+Run `scripts/precheck_verify.py` after Word generation. It must pass all rule classification, G6, disposition, 03-to-04, 04-to-Word, table-shape, blank-cell, comment, tracked-change, template-residue, and filename checks before the Word file is a return candidate. A PASS does not replace evidence review or all-page visual inspection.
+
 ## Build and verify the Word return
 
 1. Copy `assets/return-template.docx`; never edit the bundled template itself. Its English asset name is internal only and must not become the researcher-facing filename.
@@ -88,14 +112,18 @@ Do not declare completion when any candidate disappears silently.
 
 ## Reconcile human edits
 
-When a human corrects the returned Word, compare all 52 rows with 04. Update 04, preserve rejected candidates with reasons, and update the appropriate rule or writing example only when the correction is generalizable. Never mechanically restore a candidate the human intentionally deleted.
+When a human corrects the returned Word, compare all 52 rows with 04. Update 04 and preserve removed candidates with a reason. Separate whether the finding is valid from how it should be resolved: applicant return, attachment correction, researcher-profile change, secretariat handling, human decision, or another route. A finding removed from the return Word is not a negative example unless the human confirmed that it was wrong or overreaching. Update the appropriate rule, wording example, or regression test only when the correction is generalizable. Never mechanically restore a candidate the human intentionally deleted.
 
 ## Resource map
 
+- `references/precheck_v2_workflow.md`: standard cached, role-scoped, verified execution path
 - `references/workflow.md`: complete workflow and output contract
 - `references/review_quality_playbook.md`: omission, overreach, resubmission, and transfer QA
 - `references/rules/`: rule IDs, wording patterns, template checks, provenance, and reverse-application evidence
 - `references/examples/review_examples_policy.md`: permitted use of historical examples
 - `scripts/extract_research_docs.py`: batch extraction and manifest creation
+- `scripts/precheck_scan.py`: hash-based one-time extraction, source exclusion, timeline evidence, and rule ledger
+- `scripts/precheck_verify.py`: deterministic rule, transfer, DOCX structure, and residue verification
+- `scripts/precheck_usage.py`: deduplicated per-study final token totals or an explicit unavailable record
 - `scripts/build_return_docx_from_template.py`: template-preserving DOCX builder
 - `assets/return-template.docx`: blank institutional return template

@@ -12,6 +12,9 @@
 - 根拠資料とページ・項目を付けた Markdown の監査記録を作成
 - 同梱テンプレートの表・枠を保った返却用 DOCX を生成し、転記漏れを検証
 - 不明点、施設判断、根拠不足を断定せず「人間確認事項」として分離
+- 原資料をSHA-256単位で一度だけ抽出し、同一資料の再抽出とサブ担当への全文再投入を抑制
+- 登録・最終追跡・データ固定・統計解析まで含む研究期間の実行可能性をG6ルール群で確認
+- 03→04→返却Wordの転記、52行・2表、定型文残骸、コメント・変更履歴を機械検証
 
 ## インストール
 
@@ -54,7 +57,7 @@ cp -R ./ethics-precheck/codex-skill "${CODEX_HOME:-$HOME/.codex}/skills/ethics-p
 
 - Skills を利用できる Codex 環境
 - Python 3.9 以上
-- Python パッケージ: `pdfplumber`、`python-docx`
+- Python パッケージ: `pdfplumber`、`pypdf`、`python-docx`
 - PDF/DOCX の読み書きが許可されたローカル作業環境
 
 補助スクリプトの依存関係は、インストール後に次で導入できます。
@@ -96,12 +99,19 @@ $ethics-precheck で返却用 Word を作成し、可能なら全ページをレ
 標準出力は、研究フォルダ内の新しい `99_プレチェック出力/` に保存します。
 
 ```text
+00_source_manifest.json
+00_extracted_pages.json
+00_timeline_facts.json
+00_rule_ledger.json
+00_fact_pack.json
 01_資料一覧.md
 02_研究種別_仮分類.md
 03_サブAI別レビュー結果.md
 04_指摘事項書ドラフト.md
 05_人間確認事項.md
 06_ファクトチェック結果.md
+07_検証結果.json / 07_検証結果.md
+08_token_usage.json（取得可能な場合。取得不能時は理由を記録）
 ★倫理申請_修正対応依頼_<研究課題名>_<作成日4桁>.docx
 ```
 
@@ -126,7 +136,7 @@ codex-skill/                 配布する Codex Skill
   agents/openai.yaml         Codex UI メタデータ
   assets/                    返却用 Word テンプレート
   references/                詳細ワークフロー、ルール、品質基準
-  scripts/                   抽出・DOCX生成スクリプト
+  scripts/                   一回抽出、台帳、転記検証、利用量、DOCX生成スクリプト
 rules/                       リポジトリ運用版の日本語ルールブック
 docs/                        品質管理資料
 tools/                       開発・検証用ツールとテスト
@@ -137,7 +147,7 @@ AGENTS.md                    リポジトリ内での詳細運用ルール
 
 ```powershell
 python -m unittest discover -s tools -p "test_*.py"
-python -m py_compile codex-skill/scripts/extract_research_docs.py codex-skill/scripts/build_return_docx_from_template.py
+python -m py_compile codex-skill/scripts/extract_research_docs.py codex-skill/scripts/precheck_scan.py codex-skill/scripts/precheck_verify.py codex-skill/scripts/precheck_usage.py codex-skill/scripts/build_return_docx_from_template.py
 ```
 
 Skill の frontmatter と構成は、Codex に同梱される `quick_validate.py` でも検証できます。

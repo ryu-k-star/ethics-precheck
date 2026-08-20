@@ -79,6 +79,10 @@ class ReturnDocxFilenameGateTests(unittest.TestCase):
         self.assertTrue(output.is_file())
         document = BUILDER.Document(output)
         self.assertEqual([len(table.rows) for table in document.tables], [52, 1])
+        cant_split_tag = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}cantSplit"
+        self.assertTrue(
+            all(row._tr.get_or_add_trPr().find(cant_split_tag) is not None for row in document.tables[0].rows)
+        )
         self.assertEqual(
             document.tables[0].cell(5, 1).text,
             "施設区分を確認してください。",
