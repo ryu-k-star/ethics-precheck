@@ -70,6 +70,8 @@ class PrecheckV2PipelineTests(unittest.TestCase):
             self.assertEqual(first_summary["source_count"], 2)
             self.assertEqual(first_summary["cache_hits"], 0)
             self.assertEqual(second_summary["cache_hits"], 2)
+            self.assertNotIn("fact_candidates", first_summary)
+            self.assertNotIn("［試料", first.stdout)
             self.assertEqual(len(ledger["rules"]), 108)
             self.assertTrue(any("old.docx" in warning for warning in manifest["warnings"]))
             self.assertTrue(any(hit["rule_id"].startswith("T1-") for hit in r3["hits"]))

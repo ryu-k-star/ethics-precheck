@@ -408,7 +408,17 @@ def main() -> int:
         "review_note": "抽出候補であり、原資料頁による照合と文書間比較を省略しない。",
     }
     (out / "00_fact_pack.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps(summary, ensure_ascii=False))
+    console_summary = {
+        "study": study.name,
+        "source_count": len(sources),
+        "cache_hits": sum(bool(f["cache_hit"]) for f in manifest_files),
+        "timeline_evidence_count": len(timeline["evidence"]),
+        "r3_hit_count": len(residue["hits"]),
+        "rule_count": len(ledger["rules"]),
+        "warning_count": len(warnings),
+        "output": str(out),
+    }
+    print(json.dumps(console_summary, ensure_ascii=False))
     return 0
 
 
