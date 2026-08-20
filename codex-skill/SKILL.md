@@ -1,11 +1,18 @@
 ---
 name: ethics-precheck
-description: Review Japanese clinical-research and ethics-committee application packages, audit cross-document consistency and required disclosures, prepare evidence-linked Markdown findings, and build the institution-style return DOCX. Use for initial or resubmitted IRB/ethics applications containing PDF or DOCX plans, application-system exports, participant information and consent forms, opt-out notices, questionnaires, data/sample handling documents, or prior correction requests.
+description: Precheck Japanese clinical-research ethics application packages by auditing evidence across PDF/DOCX files, recording item-by-item findings, and producing a template-preserving return DOCX. Use for initial or resubmitted IRB/ethics applications; do not use for generic ethical advice, committee approval decisions, or legal/compliance certification.
 ---
 
 # Ethics Precheck
 
 Perform an evidence-first precheck without replacing the ethics committee's judgment. Produce a traceable review package and a template-preserving return Word file only after all quality gates pass.
+
+## Confirm the assignment
+
+- Identify the user-designated study folder, whether this is an initial or resubmitted application, and the requested output location before processing files.
+- Locate the current application package, facility-specific rules and template, and any prior correction request supplied by the user. Treat missing material as a review limitation, not as evidence that the application is deficient.
+- Confirm that Python 3.9 or newer plus the packages in `requirements.txt` are available before running the bundled scripts. If a required tool is unavailable, continue only where reliable and state the resulting limitation.
+- Handle all study data under the user's authorization and institutional data rules. Do not upload source documents, extracted text, or outputs to an external service unless the user has explicitly authorized that destination.
 
 ## Start safely
 
