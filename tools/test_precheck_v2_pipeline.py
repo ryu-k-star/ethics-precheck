@@ -31,7 +31,7 @@ class PrecheckV2PipelineTests(unittest.TestCase):
             study = base / "study-001"
             study.mkdir()
             (study / "plan.txt").write_text(
-                "研究期間 2026年8月1日から2027年3月31日まで\n"
+                "1. 研究課題名 テスト研究\n研究期間 2026年8月1日から2027年3月31日まで\n"
                 "予定対象者数 38名\n統計解析期間は未記載\n作成日 20XX年X月X日\n"
                 "［試料・情報］を選択してください\n",
                 encoding="utf-8",
@@ -65,6 +65,7 @@ class PrecheckV2PipelineTests(unittest.TestCase):
             ledger = json.loads((output / "00_rule_ledger.json").read_text(encoding="utf-8"))
             manifest = json.loads((output / "00_source_manifest.json").read_text(encoding="utf-8"))
             r3 = json.loads((output / "00_r3_hits.json").read_text(encoding="utf-8"))
+            fact_pack = json.loads((output / "00_fact_pack.json").read_text(encoding="utf-8"))
 
             self.assertEqual(first_summary["source_count"], 2)
             self.assertEqual(first_summary["cache_hits"], 0)
@@ -74,6 +75,9 @@ class PrecheckV2PipelineTests(unittest.TestCase):
             self.assertTrue(any(hit["rule_id"].startswith("T1-") for hit in r3["hits"]))
             self.assertTrue(any(hit["rule_id"] == "T1-4" for hit in r3["hits"]))
             self.assertTrue(any(hit["rule_id"] == "T1-13" for hit in r3["hits"]))
+            self.assertIn("study_titles", fact_pack["fact_candidates"])
+            self.assertIn(1, fact_pack["application_items"]["detected"])
+            self.assertTrue(any(hit["rule_id"] == "T1-4" for hit in fact_pack["r3_hits"]))
 
     def test_verifier_rejects_dropped_swapped_and_missing_findings(self) -> None:
         verifier = load_module("precheck_verify", SKILL / "scripts" / "precheck_verify.py")
@@ -131,7 +135,7 @@ class PrecheckV2PipelineTests(unittest.TestCase):
                 encoding="utf-8",
             )
             draft = base / "04.md"
-            rows = ["| 項目 | 対応要否 | 指摘内容 |", "|---|---|---|"]
+            rows = ["研究課題名【テスト研究】", "", "| 項目 | 対応要否 | 指摘内容 |", "|---|---|---|"]
             for item in range(1, 52):
                 status = "要対応" if item == 17 else "対応不要"
                 comment = "登録期間を明記してください。追跡・解析期間を整理してください。" if item == 17 else ""
@@ -211,6 +215,11 @@ class PrecheckV2PipelineTests(unittest.TestCase):
             unknown = verifier.verify(argparse.Namespace(rules=SKILL / "references" / "rules", timeline=timeline, ledger=ledger_path, review=unknown_review, draft=draft, factcheck=factcheck, word=word))
             self.assertFalse(next(c for c in unknown["checks"] if c["id"] == "findings.schema")["passed"])
 
+            wrong_name = base / "★倫理申請_修正対応依頼_別研究_0820.docx"
+            document.save(wrong_name)
+            wrong_filename = verifier.verify(argparse.Namespace(rules=SKILL / "references" / "rules", timeline=timeline, ledger=ledger_path, review=review, draft=draft, factcheck=factcheck, word=wrong_name))
+            self.assertFalse(next(c for c in wrong_filename["checks"] if c["id"] == "word.filename")["passed"])
+
             draft.write_text(original_draft, encoding="utf-8")
             for row in ledger["rules"]:
                 if row["rule_id"].startswith("G6-"):
@@ -225,7 +234,7 @@ class PrecheckV2PipelineTests(unittest.TestCase):
             ledger_path.write_text(json.dumps(ledger), encoding="utf-8")
             empty_review = base / "03-empty.md"
             empty_review.write_text("## A欄候補\n\n| Finding ID | ルールID | 指摘先項目 | 根拠頁 | 内容 |\n|---|---|---|---|---|\n\n## B欄候補\n\n| Finding ID | ルールID | 資料 | 根拠頁 | 内容 |\n|---|---|---|---|---|\n", encoding="utf-8")
-            empty_rows = ["| 項目 | 対応要否 | 指摘内容 |", "|---|---|---|"]
+            empty_rows = ["研究課題名【指摘なし】", "", "| 項目 | 対応要否 | 指摘内容 |", "|---|---|---|"]
             empty_rows.extend(f"| {item}. item | 対応不要 |  |" for item in range(1, 52))
             empty_rows.extend(["| 連絡担当者 | 対応不要 |  |", "", "A．倫理審査申請システム質疑事項", "B．修正が必要な添付書類の再アップロード", "なし", "C．軽微な文言修正等を行った添付書類の再アップロード", "なし"])
             empty_draft = base / "04-empty.md"

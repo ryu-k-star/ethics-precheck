@@ -20,7 +20,7 @@ python scripts\precheck_scan.py 'research-folder\案件ID' `
 - `00_timeline_facts.json`：研究期間、登録、追跡、解析の根拠候補
 - `00_r3_hits.json`：R3のT1/T2を正規化本文へ機械適用したヒット
 - `00_rule_ledger.json`：R1/R2全ルールの適用台帳
-- `00_fact_pack.json`：担当へ渡す短い要約
+- `00_fact_pack.json`：担当へ渡す短い要約。R3ヒット、課題名・人名役割・所属施設・連絡先・対象者数・日付・保管期間の抽出候補、申請項目1〜51の欠番候補を含む
 
 同じSHA-256の資料は再抽出しない。`99_プレチェック出力*`、`tmp`、`output(s)`、キャッシュ、`.git` は入力から除外する。除外先のPDF/DOCXは警告だけを残すため、原資料の置き場所を誤った場合も気づける。
 

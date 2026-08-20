@@ -17,6 +17,11 @@ RULE_FILE_GROUPS = (
     ("R1_項目間整合ルール.md", "r1-cross-document-consistency.md"),
     ("R2_必須記載チェックリスト.md", "r2-required-content.md"),
 )
+RETURN_PREFIX = "★倫理申請_修正対応依頼_"
+WINDOWS_FILENAME_TRANSLATION = str.maketrans({
+    '"': "”", "*": "＊", "/": "／", ":": "：", "<": "＜", ">": "＞",
+    "?": "？", "\\": "￥", "|": "｜",
+})
 
 
 def default_rules_dir() -> Path:
@@ -65,6 +70,29 @@ def add(checks: list[dict[str, Any]], check_id: str, passed: bool, detail: str) 
 def row_item_number(label: str) -> int | None:
     match = re.match(r"\s*(\d{1,2})\.", label or "")
     return int(match.group(1)) if match else None
+
+
+def expected_word_name(draft: str, actual_name: str) -> str | None:
+    study_title: str | None = None
+    for line in draft.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("研究課題名"):
+            continue
+        value = stripped[len("研究課題名"):].strip()
+        if value.startswith("【") and value.endswith("】"):
+            value = value[1:-1].strip()
+        else:
+            value = value.lstrip("：:").strip()
+        if value:
+            study_title = value
+            break
+    date_match = re.search(r"_(\d{4})\.docx$", actual_name, re.IGNORECASE)
+    if not study_title or not date_match:
+        return None
+    safe_title = study_title.translate(WINDOWS_FILENAME_TRANSLATION)
+    safe_title = "".join(" " if ord(char) < 32 else char for char in safe_title)
+    safe_title = re.sub(r"\s+", " ", safe_title).strip(" .")
+    return f"{RETURN_PREFIX}{safe_title}_{date_match.group(1)}.docx" if safe_title else None
 
 
 def markdown_cells(line: str) -> list[str]:
@@ -270,7 +298,8 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
     flags = docx_xml_flags(args.word)
     add(checks, "word.no_comments", flags["comment_parts"] == 0, str(flags))
     add(checks, "word.no_tracked_changes", flags["tracked_change_tags"] == 0, str(flags))
-    add(checks, "word.filename", args.word.name.startswith("★倫理申請_修正対応依頼_") and re.search(r"_\d{4}\.docx$", args.word.name) is not None, args.word.name)
+    expected_name = expected_word_name(draft, args.word.name)
+    add(checks, "word.filename", expected_name is not None and args.word.name.casefold() == expected_name.casefold(), f"expected={expected_name}; actual={args.word.name}")
     return {"passed": all(c["passed"] for c in checks), "checks": checks}
 
 

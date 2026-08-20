@@ -29,6 +29,14 @@ TIMELINE_TERMS = (
     "研究期間", "実施期間", "研究終了", "登録期間", "エントリー", "追跡", "観察期間",
     "解析", "統計解析", "症例数", "対象者数", "予定対象者数",
 )
+EMAIL_PATTERN = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+PHONE_PATTERN = re.compile(r"(?<!\d)0\d{1,4}[-‐‑–—ー ]?\d{1,4}[-‐‑–—ー ]?\d{3,4}(?!\d)")
+LABELED_FACT_TERMS = {
+    "study_titles": ("研究課題名", "課題名"),
+    "people_and_roles": ("研究責任者", "研究分担者", "研究協力者", "個人情報管理責任者", "連絡担当者", "氏名"),
+    "affiliations_and_sites": ("所属", "実施施設", "研究機関", "病院", "大学", "センター"),
+    "storage_periods": ("保管期間", "保存期間", "研究終了後", "結果公表後"),
+}
 RULE_FILE_GROUPS = (
     ("R1_項目間整合ルール.md", "r1-cross-document-consistency.md"),
     ("R2_必須記載チェックリスト.md", "r2-required-content.md"),
@@ -164,6 +172,61 @@ def timeline_evidence(extractions: list[dict[str, Any]]) -> dict[str, Any]:
             "target_count": None, "expected_enrollment_end": None, "followup_months": None,
             "analysis_months": None, "latest_followup_end": None, "latest_analysis_end": None,
             "analysis_margin_days": None, "finding": None, "assumptions": [],
+        },
+    }
+
+
+def compact_facts(extractions: list[dict[str, Any]]) -> dict[str, Any]:
+    buckets: dict[str, dict[str, dict[str, Any]]] = {name: {} for name in LABELED_FACT_TERMS}
+    buckets.update({"emails": {}, "phone_numbers": {}, "target_counts": {}, "dates": {}})
+    detected_items: set[int] = set()
+    item_evidence: list[dict[str, Any]] = []
+
+    def record(category: str, value: str, source: str, page: int | None, context: str) -> None:
+        normalized = normalize_for_scan(value)
+        if category == "emails":
+            normalized = value.lower()
+        elif category == "phone_numbers":
+            normalized = re.sub(r"\D", "", value)
+        if not normalized:
+            return
+        row = buckets[category].setdefault(normalized, {
+            "value": compact_line(value)[:500], "normalized": normalized[:500],
+            "source": source, "page": page, "context": compact_line(context)[:700], "occurrences": 0,
+        })
+        row["occurrences"] += 1
+
+    for item in extractions:
+        for page in item["extraction"].get("pages", []):
+            for raw in (page.get("text") or "").splitlines():
+                line = compact_line(raw)
+                if not line:
+                    continue
+                for category, terms in LABELED_FACT_TERMS.items():
+                    if any(term in line for term in terms):
+                        record(category, line, item["path"], page.get("page"), line)
+                for match in EMAIL_PATTERN.finditer(line):
+                    record("emails", match.group(0), item["path"], page.get("page"), line)
+                for match in PHONE_PATTERN.finditer(line):
+                    record("phone_numbers", match.group(0), item["path"], page.get("page"), line)
+                for match in TARGET_PATTERN.finditer(line):
+                    record("target_counts", match.group(0), item["path"], page.get("page"), line)
+                for match in DATE_PATTERN.finditer(line):
+                    record("dates", match.group(0), item["path"], page.get("page"), line)
+                numbers = {
+                    int(value) for value in re.findall(r"(?:^|[^0-9])(?:項目\s*)?([1-9]|[1-4]\d|5[01])\s*[.．:：]", raw)
+                }
+                for number in sorted(numbers - detected_items):
+                    detected_items.add(number)
+                    item_evidence.append({"item": number, "source": item["path"], "page": page.get("page"), "text": line[:300]})
+    return {
+        "schema_version": 1,
+        "fact_candidates": {name: list(values.values()) for name, values in buckets.items()},
+        "application_items": {
+            "detected": sorted(detected_items),
+            "missing_candidates": sorted(set(range(1, 52)) - detected_items),
+            "evidence": item_evidence,
+            "review_note": "番号検出は候補。申請システム本文で1〜51の欠番を確認する。",
         },
     }
 
@@ -333,10 +396,16 @@ def main() -> int:
         },
     }
     (out / "00_rule_ledger.json").write_text(json.dumps(ledger, ensure_ascii=False, indent=2), encoding="utf-8")
+    facts = compact_facts(extracted)
     summary = {
+        "schema_version": 2,
         "study": study.name, "source_count": len(sources), "cache_hits": sum(bool(f["cache_hit"]) for f in manifest_files),
         "timeline_evidence_count": len(timeline["evidence"]), "r3_hit_count": len(residue["hits"]),
         "rule_count": len(ledger["rules"]), "warnings": warnings,
+        "fact_candidates": facts["fact_candidates"],
+        "application_items": facts["application_items"],
+        "r3_hits": residue["hits"],
+        "review_note": "抽出候補であり、原資料頁による照合と文書間比較を省略しない。",
     }
     (out / "00_fact_pack.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(summary, ensure_ascii=False))

@@ -40,7 +40,7 @@ python scripts/precheck_scan.py <study-root> --out <new-output-folder> --cache <
 
 - The scanner hashes each source and reuses extraction only when the extractor version and source SHA-256 match.
 - It excludes prior `99_プレチェック出力*`, `tmp`, `output(s)`, cache, and `.git` directories from source discovery. It still records a warning when an excluded directory contains PDF/DOCX files so misplaced source documents are visible. Review `00_r3_hits.json`, which applies machine-readable R3 T1/T2 patterns to whitespace-normalized source text.
-- Reuse extracted text and the compact fact pack across reviewers. Do not ask each reviewer to rediscover the same document inventory or extract the same pages.
+- Reuse extracted text and the compact fact pack across reviewers. The fact pack includes R3 hits, cross-document fact candidates, and application-item gap candidates; reconcile them against cited source pages rather than asking each reviewer to rediscover the same inventory or extract the same pages.
 - Treat cached extraction as a speed optimization, not as an exemption from visual inspection of image-only or layout-dependent pages.
 
 ## Run the review
