@@ -102,6 +102,7 @@ $ethics-precheck で返却用 Word を作成し、可能なら全ページをレ
 00_source_manifest.json
 00_extracted_pages.json
 00_timeline_facts.json
+00_r3_hits.json
 00_rule_ledger.json
 00_fact_pack.json
 01_資料一覧.md

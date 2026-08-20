@@ -39,7 +39,7 @@ python scripts/precheck_scan.py <study-root> --out <new-output-folder> --cache <
 ```
 
 - The scanner hashes each source and reuses extraction only when the extractor version and source SHA-256 match.
-- It excludes prior `99_プレチェック出力*`, `tmp`, `output(s)`, cache, and `.git` directories from source discovery. It still records a warning when an excluded directory contains PDF/DOCX files so misplaced source documents are visible.
+- It excludes prior `99_プレチェック出力*`, `tmp`, `output(s)`, cache, and `.git` directories from source discovery. It still records a warning when an excluded directory contains PDF/DOCX files so misplaced source documents are visible. Review `00_r3_hits.json`, which applies machine-readable R3 T1/T2 patterns to whitespace-normalized source text.
 - Reuse extracted text and the compact fact pack across reviewers. Do not ask each reviewer to rediscover the same document inventory or extract the same pages.
 - Treat cached extraction as a speed optimization, not as an exemption from visual inspection of image-only or layout-dependent pages.
 
@@ -68,18 +68,21 @@ Create these files in the study output folder:
 1. `00_source_manifest.json`
 2. `00_extracted_pages.json`
 3. `00_timeline_facts.json`
-4. `00_rule_ledger.json`
-5. `00_fact_pack.json`
-6. `01_資料一覧.md`
-7. `02_研究種別_仮分類.md`
-8. `03_サブAI別レビュー結果.md`
-9. `04_指摘事項書ドラフト.md`
-10. `05_人間確認事項.md`
-11. `06_ファクトチェック結果.md`
-12. `07_検証結果.json` and `07_検証結果.md`
-13. `08_token_usage.json` when usage totals are available, or an unavailable entry with the reason
+4. `00_r3_hits.json`
+5. `00_rule_ledger.json`
+6. `00_fact_pack.json`
+7. `01_資料一覧.md`
+8. `02_研究種別_仮分類.md`
+9. `03_サブAI別レビュー結果.md`
+10. `04_指摘事項書ドラフト.md`
+11. `05_人間確認事項.md`
+12. `06_ファクトチェック結果.md`
+13. `07_検証結果.json` and `07_検証結果.md`
+14. `08_token_usage.json` when usage totals are available, or an unavailable entry with the reason
 
 Use the schemas in `references/workflow.md`. Cover all seven review domains even when one reviewer handles several domains. If subagents are available, independently assign at least research-plan/ethics review and fact-check/evidence reconciliation. Give each subagent only its role, the compact fact/timeline pack, assigned rules, and necessary source pages; do not pass the full conversation or every reference file. If subagents are unavailable, state that fact and the reason in 03 or 06.
+
+For v2 candidates, use the five-column Finding ID schemas in `references/precheck_v2_workflow.md`; they supersede the legacy four-column candidate examples in the complete workflow. Give every A/B candidate a stable ID and a matching ledger disposition so multiple findings under one application item cannot collapse into one.
 
 ### 4. Draft for action
 
@@ -122,7 +125,7 @@ When a human corrects the returned Word, compare all 52 rows with 04. Update 04 
 - `references/rules/`: rule IDs, wording patterns, template checks, provenance, and reverse-application evidence
 - `references/examples/review_examples_policy.md`: permitted use of historical examples
 - `scripts/extract_research_docs.py`: batch extraction and manifest creation
-- `scripts/precheck_scan.py`: hash-based one-time extraction, source exclusion, timeline evidence, and rule ledger
+- `scripts/precheck_scan.py`: hash-based one-time extraction, source exclusion, R3 T1/T2 scanning, timeline evidence, and rule ledger
 - `scripts/precheck_verify.py`: deterministic rule, transfer, DOCX structure, and residue verification
 - `scripts/precheck_usage.py`: deduplicated per-study final token totals or an explicit unavailable record
 - `scripts/build_return_docx_from_template.py`: template-preserving DOCX builder

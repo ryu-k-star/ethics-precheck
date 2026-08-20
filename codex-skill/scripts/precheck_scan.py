@@ -10,10 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from docx import Document
-from pypdf import PdfReader
-
-
-EXTRACTOR_VERSION = "1.0.0"
+EXTRACTOR_VERSION = "1.1.0"
 SOURCE_SUFFIXES = {".pdf", ".docx", ".txt", ".md", ".csv", ".xlsx", ".zip"}
 EXCLUDED_DIR_PATTERNS = (
     re.compile(r"^99_プレチェック出力(?:_|$)"),
@@ -36,6 +33,12 @@ RULE_FILE_GROUPS = (
     ("R1_項目間整合ルール.md", "r1-cross-document-consistency.md"),
     ("R2_必須記載チェックリスト.md", "r2-required-content.md"),
 )
+
+
+def default_rules_dir() -> Path:
+    root = Path(__file__).resolve().parents[1]
+    packaged = root / "references" / "rules"
+    return packaged if packaged.is_dir() else root / "rules"
 
 
 def utc_now() -> str:
@@ -70,6 +73,8 @@ def discover_sources(study: Path) -> tuple[list[Path], list[str]]:
 
 
 def extract_pdf(path: Path) -> dict[str, Any]:
+    from pypdf import PdfReader
+
     reader = PdfReader(str(path))
     pages = []
     for number, page in enumerate(reader.pages, 1):
@@ -177,12 +182,92 @@ def rule_ids(rules_dir: Path) -> list[str]:
     return found
 
 
+def r3_hits(rules_dir: Path, extractions: list[dict[str, Any]]) -> dict[str, Any]:
+    alternatives = ("R3_書式残骸・表記ルール.md", "r3-format-and-word-qa.md")
+    rule_file = next((rules_dir / name for name in alternatives if (rules_dir / name).is_file()), None)
+    if rule_file is None:
+        raise FileNotFoundError(f"Missing R3 rule file under {rules_dir}: one of {alternatives}")
+    machine_patterns: list[tuple[str, str]] = []
+    unscanned: list[str] = []
+    for line in rule_file.read_text(encoding="utf-8").splitlines():
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) < 2 or not re.fullmatch(r"T[12]-\d+", cells[0]):
+            continue
+        rid, specification = cells[0], cells[1]
+        tokens = re.findall(r"`([^`]+)`", specification)
+        if rid == "T1-4":
+            tokens = [r"(?:\[|［)?試料(?:および情報)?・(?:試料・)?情報(?:\]|］)?"]
+        if rid.startswith("T2-") and not tokens:
+            tokens = [part.strip() for part in specification.split("／") if part.strip()]
+            if rid == "T2-1":
+                tokens = [token.replace("（法人名として）", "") for token in tokens]
+        if not tokens and rid != "T1-13":
+            unscanned.append(rid)
+        for token in tokens:
+            machine_patterns.append((rid, token))
+    hits: list[dict[str, Any]] = []
+    invalid_patterns: list[dict[str, str]] = []
+    for rid, token in machine_patterns:
+        try:
+            pattern = re.compile(token)
+        except re.error as exc:
+            invalid_patterns.append({"rule_id": rid, "pattern": token, "error": str(exc)})
+            continue
+        for item in extractions:
+            for page in item["extraction"].get("pages", []):
+                raw = page.get("text") or ""
+                search_versions = (("normalized", normalize_for_scan(raw)), ("raw", raw))
+                seen: set[str] = set()
+                for mode, searchable in search_versions:
+                    for match in pattern.finditer(searchable):
+                        key = match.group(0)
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                        hits.append({
+                            "rule_id": rid, "source": item["path"], "page": page.get("page"),
+                            "pattern": token, "mode": mode, "matched": key[:200],
+                        })
+    # T1-13 is structural rather than textual. DOCX extraction preserves table/row
+    # markers, so blank rows can be checked only in tables whose header contains
+    # both affiliation and name. PDF blank rows remain part of visual QA.
+    for item in extractions:
+        if item["extraction"].get("kind") != "docx":
+            continue
+        text = "\n".join(page.get("text") or "" for page in item["extraction"].get("pages", []))
+        lines = text.splitlines()
+        eligible_tables: set[str] = set()
+        for line in lines:
+            marker = re.match(r"\[(T\d+)R\d+\]\s*(.*)", line)
+            if marker and "所属" in marker.group(2) and "氏名" in marker.group(2):
+                eligible_tables.add(marker.group(1))
+        for line in lines:
+            marker = re.match(r"\[(T\d+)R(\d+)\]\s*(.*)", line)
+            if not marker or marker.group(1) not in eligible_tables:
+                continue
+            cells = [cell.strip() for cell in marker.group(3).split("|")]
+            if len(cells) >= 2 and all(not cell for cell in cells):
+                hits.append({
+                    "rule_id": "T1-13", "source": item["path"], "page": None,
+                    "pattern": "blank affiliation/name table row", "mode": "docx-structure",
+                    "matched": f"{marker.group(1)}R{marker.group(2)}",
+                })
+    return {
+        "schema_version": 1, "rule_file": str(rule_file), "hits": hits,
+        "unscanned_rules": sorted(set(unscanned)), "invalid_patterns": invalid_patterns,
+    }
+
+
+def normalize_for_scan(text: str) -> str:
+    return re.sub(r"[\s　]+", "", text or "")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Extract one study once and create a compact precheck fact pack.")
     parser.add_argument("study", type=Path)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--cache", type=Path, default=Path(".precheck-cache"))
-    parser.add_argument("--rules", type=Path, default=Path("rules"))
+    parser.add_argument("--rules", type=Path, default=default_rules_dir())
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
     study = args.study.resolve()
@@ -214,6 +299,8 @@ def main() -> int:
     (out / "00_extracted_pages.json").write_text(json.dumps(extracted, ensure_ascii=False, indent=2), encoding="utf-8")
     timeline = timeline_evidence(extracted)
     (out / "00_timeline_facts.json").write_text(json.dumps(timeline, ensure_ascii=False, indent=2), encoding="utf-8")
+    residue = r3_hits(args.rules.resolve(), extracted)
+    (out / "00_r3_hits.json").write_text(json.dumps(residue, ensure_ascii=False, indent=2), encoding="utf-8")
     ledger = {
         "schema_version": 2, "study": study.name,
         "allowed_statuses": ["na", "satisfied", "candidate", "human"],
@@ -232,12 +319,15 @@ def main() -> int:
         "dispositions": [],
         "disposition_schema": {
             "finding_id": "案件内で一意のID",
+            "finding_type": "A|B",
             "source_rule_ids": ["G1-1"],
             "item_numbers": [1],
+            "document": "B欄候補の資料名。A欄はnull",
             "evidence_status": "confirmed|inferred|human",
             "return_route": "applicant_return|attachment_return|researcher_profile|secretariat_internal|human_decision|resolved_elsewhere",
             "action_owner": "申請者・各研究者本人・事務局・最終確認者など",
             "included_in_return": True,
+            "final_text": "04とWordへ反映する確定文。非返却時は空文字",
             "disposition_reason": "採用・集約・別経路対応・保留等の理由",
             "root_issue_id": "同じ原因から派生する指摘を束ねるID",
         },
@@ -245,7 +335,8 @@ def main() -> int:
     (out / "00_rule_ledger.json").write_text(json.dumps(ledger, ensure_ascii=False, indent=2), encoding="utf-8")
     summary = {
         "study": study.name, "source_count": len(sources), "cache_hits": sum(bool(f["cache_hit"]) for f in manifest_files),
-        "timeline_evidence_count": len(timeline["evidence"]), "rule_count": len(ledger["rules"]), "warnings": warnings,
+        "timeline_evidence_count": len(timeline["evidence"]), "r3_hit_count": len(residue["hits"]),
+        "rule_count": len(ledger["rules"]), "warnings": warnings,
     }
     (out / "00_fact_pack.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(summary, ensure_ascii=False))

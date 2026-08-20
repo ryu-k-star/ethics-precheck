@@ -18,16 +18,21 @@ python scripts\precheck_scan.py 'research-folder\案件ID' `
 - `00_source_manifest.json`：原資料のSHA-256、サイズ、更新日時、キャッシュ利用状況
 - `00_extracted_pages.json`：頁単位の抽出本文
 - `00_timeline_facts.json`：研究期間、登録、追跡、解析の根拠候補
+- `00_r3_hits.json`：R3のT1/T2を正規化本文へ機械適用したヒット
 - `00_rule_ledger.json`：R1/R2全ルールの適用台帳
 - `00_fact_pack.json`：担当へ渡す短い要約
 
 同じSHA-256の資料は再抽出しない。`99_プレチェック出力*`、`tmp`、`output(s)`、キャッシュ、`.git` は入力から除外する。除外先のPDF/DOCXは警告だけを残すため、原資料の置き場所を誤った場合も気づける。
+
+T1-13の空行は、所属・氏名見出しを持つDOCX表では構造検査する。PDFでは空の表行が抽出テキストに現れない場合があるため、R3のレイアウト依存項目とともに視覚確認を残す。
 
 ## 2. ゼロベースレビュー
 
 過去出力を開く前に、R1〜R3を原資料へ全件適用する。各ルールを `na`、`satisfied`、`candidate`、`human` のいずれかに分類する。非該当・充足項目には長文を書かず、候補と人間確認だけに資料名・頁・項目番号・短い根拠を付ける。
 
 研究期間はG6-1〜G6-7を必須ゲートとし、開始・終了・月数、目標数・登録上限、登録完了、最終追跡、データ固定、統計解析、結果整理を順に確認する。登録速度・追跡期間・解析期間が資料にない場合は推測せず、人間確認へ回す。
+
+`00_timeline_facts.json` の `review_fields` を根拠頁に基づいて確認し、`finding` に結論または確認不能理由を書いたうえで `status` を `reviewed` にする。G6-1・G6-2は常に適用し、`na` にしない。期間情報が不足する場合はG6-7を `human` または `candidate` にする。
 
 ## 3. 独立担当
 
@@ -40,13 +45,16 @@ python scripts\precheck_scan.py 'research-folder\案件ID' `
 
 `04_指摘事項書ドラフト.md` は公式テンプレートと同じ52行を保持する。対応不要行は本文を空にする。Wordは `scripts/build_return_docx_from_template.py` で公式テンプレートのコピーから作る。
 
-候補ごとに、問題の妥当性とは別に返却経路を決める。`00_rule_ledger.json` の `dispositions` へ、根拠状態、返却経路、対応主体、返却Wordへ含めたか、理由、同じ原因を束ねる `root_issue_id` を記録する。申請者向けA/B欄、各研究者本人のユーザー設定、事務局内処理、人間判断、別経路対応を区別する。返却Wordに載せない場合も、問題なし・過剰と確認できない限り指摘自体は残す。
+候補ごとに一意の `Finding ID`（A欄は `A-001`、B欄は `B-001` 形式）を付ける。03の表は、A欄を `Finding ID｜ルールID｜指摘先項目｜根拠頁｜内容`、B欄を `Finding ID｜ルールID｜資料｜根拠頁｜内容` の5列とする。このv2形式は旧workflowの4列表より優先する。
+
+候補ごとに、問題の妥当性とは別に返却経路を決める。`00_rule_ledger.json` の `dispositions` へ、同じ `finding_id`、`finding_type`、`source_rule_ids`、A欄の `item_numbers` またはB欄の `document`、根拠状態、返却経路、対応主体、返却Wordへ含めたか、04に含める確定文 `final_text`、理由、同じ原因を束ねる `root_issue_id` を記録する。申請者向けA/B欄、各研究者本人のユーザー設定、事務局内処理、人間判断、別経路対応を区別する。返却Wordに載せない場合も、問題なし・過剰と確認できない限り指摘自体は残し、Finding IDと理由を06へ記録する。
 
 ## 5. 機械検証
 
 ```powershell
 python scripts\precheck_verify.py `
-  --rules 'references\rules' --ledger '出力\00_rule_ledger.json' `
+  --rules 'references\rules' --timeline '出力\00_timeline_facts.json' `
+  --ledger '出力\00_rule_ledger.json' `
   --review '出力\03_サブAI別レビュー結果.md' `
   --draft '出力\04_指摘事項書ドラフト.md' `
   --factcheck '出力\06_ファクトチェック結果.md' `
@@ -55,7 +63,7 @@ python scripts\precheck_verify.py `
   --md-out '出力\07_機械検証結果.md'
 ```
 
-PASS条件は、全ルール分類、G6群の分類、03→04転記または明示的な別経路記録、別経路記録の完全性、04→Word転記、対応不要セルの空欄、2表・52行、コメント0、変更履歴0、定型文残骸なし、正式ファイル名である。PASS後も、WordをPDF化して全ページを目視する。
+PASS条件は、全ルール分類、G6-1/G6-2の適用、期間台帳のレビュー済み状態、Finding ID単位の03→04転記または06への明示的な別経路記録、A欄の正しい項目セル、B欄の正しい資料名と全文、04→Wordのセル単位・第2表全文転記、対応不要セルの空欄、2表・52行、コメント0、変更履歴0、定型文残骸なし、正式ファイル名である。PASS後も、WordをPDF化して全ページを目視する。
 
 ## 6. 案件別トークン記録
 
