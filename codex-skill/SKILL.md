@@ -78,7 +78,8 @@ Create these files in the study output folder:
 11. `05_人間確認事項.md`
 12. `06_ファクトチェック結果.md`
 13. `07_検証結果.json` and `07_検証結果.md`
-14. `08_token_usage.json` when usage totals are available, or an unavailable entry with the reason
+
+Do not measure token usage or create `08_token_usage.json` during a normal precheck. Create it only when the user explicitly requests an efficiency, token-comparison, or performance audit. If usage totals cannot be obtained, do not estimate them or create a placeholder JSON; report that they are unavailable.
 
 Use the schemas in `references/workflow.md`. Cover all seven review domains even when one reviewer handles several domains. If subagents are available, independently assign at least research-plan/ethics review and fact-check/evidence reconciliation. Give each subagent only its role, the compact fact/timeline pack, assigned rules, and necessary source pages; do not pass the full conversation or every reference file. If subagents are unavailable, state that fact and the reason in 03 or 06.
 
