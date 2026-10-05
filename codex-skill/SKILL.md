@@ -91,6 +91,7 @@ For v2 candidates, use the five-column Finding ID schemas in `references/prechec
 - Separate A (application-system items), B (documents requiring corrected re-upload), C (minor wording/format corrections), and human-only decisions.
 - Cite the source and page/item for each adopted finding. Prefer a confirmation request when facts or facility policy remain uncertain.
 - Do not optimize for issue count. Remove only unsupported, speculative, merely stylistic, or reference-only candidates, and log the reason.
+- For application item 25, use the facility selection-to-person mapping in R1 G3-8 and the corresponding R2 C3-1 / R4 examples; keep system-field omissions separate from missing names or roles in item 4 and attachments.
 - Apply the facility overreach guards in R2 and R4. Do not require a separate fixed end date for future-use retention, media-specific disposal steps when an inclusive disposal policy is present, an application-system email address to be copied into the participant information sheet, or withdrawal-form submission details when withdrawal rights, non-disadvantage, and the required form are already present.
 
 ## Enforce three distinct audits
