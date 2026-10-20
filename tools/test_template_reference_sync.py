@@ -15,6 +15,27 @@ TEMPLATE = SKILL / "assets/return-template.docx"
 
 
 class TemplateReferenceTests(unittest.TestCase):
+    def test_r4_reference_lists_match_r5_items_and_count(self) -> None:
+        reference = (ROOT / "rules/R5_事務局定型文.md").read_text(encoding="utf-8")
+        body = reference.split("## 定型文（項目順）", 1)[1].split("## B・C枠等の定型文", 1)[0]
+        expected = re.findall(r"^### (.+)$", body, re.MULTILINE)
+        self.assertGreater(len(expected), 0)
+        self.assertEqual(len(expected), len(set(expected)))
+        for path in (
+            ROOT / "rules/R4_文体規範と文例集.md",
+            SKILL / "references/rules/r4-writing-style.md",
+        ):
+            with self.subTest(path=path.relative_to(ROOT)):
+                text = path.read_text(encoding="utf-8")
+                section = text.split("### 3.0 ", 1)[1].split("### 3.1 ", 1)[0]
+                count = re.search(r"(\d+)項目分の事務局定型文", section)
+                self.assertIsNotNone(count)
+                self.assertEqual(int(count.group(1)), len(expected))
+                listing = section.split("定型文がある項目：", 1)[1]
+                actual = re.findall(r"^- (.+)$", listing, re.MULTILINE)
+                self.assertEqual(len(actual), len(expected))
+                self.assertEqual(actual, expected)
+
     def test_template_and_reference_cover_every_nonempty_cell(self) -> None:
         self.assertEqual(TEMPLATE.read_bytes(), (ROOT / "★倫理申請_修正対応依頼.docx").read_bytes())
         reference = (SKILL / "references/rules/r5-office-standard-text.md").read_text(encoding="utf-8")
