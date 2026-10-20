@@ -291,7 +291,7 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
             if item_no not in draft_comments and len(row.cells) > 1 and normalize(row.cells[1].text):
                 non_action_filled.append(item_no or -1)
         add(checks, "word.non_action_blank", not non_action_filled, f"filled={non_action_filled}")
-        forbidden = ["読んだら消してください", "前回の申請では"]
+        forbidden = ["読んだら消してください", "読んだらこのメッセージは消してください", "前回の申請では"]
         word_text = normalize("\n".join(cell.text for table in document.tables for row in table.rows for cell in row.cells))
         residue = [value for value in forbidden if value in word_text]
         add(checks, "word.no_standard_text_residue", not residue, f"residue={residue}")

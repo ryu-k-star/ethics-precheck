@@ -180,6 +180,21 @@ class PrecheckV2PipelineTests(unittest.TestCase):
             )
             self.assertTrue(result["passed"])
 
+            for marker in ["読んだら消してください！！", "読んだらこのメッセージは消してください！！"]:
+                with self.subTest(internal_note=marker):
+                    document.save(word)
+                    contaminated = Document(word)
+                    contaminated.tables[0].cell(30, 1).text = marker
+                    contaminated.save(word)
+                    residue_result = verifier.verify(argparse.Namespace(
+                        rules=SKILL / "references" / "rules", timeline=timeline,
+                        ledger=ledger_path, review=review, draft=draft,
+                        factcheck=factcheck, word=word,
+                    ))
+                    self.assertFalse(next(c for c in residue_result["checks"]
+                                          if c["id"] == "word.no_standard_text_residue")["passed"])
+            document.save(word)
+
             original_draft = draft.read_text(encoding="utf-8")
             draft.write_text(original_draft.replace("追跡・解析期間を整理してください。", ""), encoding="utf-8")
             dropped = verifier.verify(argparse.Namespace(rules=SKILL / "references" / "rules", timeline=timeline, ledger=ledger_path, review=review, draft=draft, factcheck=factcheck, word=word))

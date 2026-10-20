@@ -108,7 +108,7 @@ Run `scripts/precheck_verify.py` after Word generation. It must pass all rule cl
 
 ## Build and verify the Word return
 
-1. Copy `assets/return-template.docx`; never edit the bundled template itself. Its English asset name is internal only and must not become the researcher-facing filename.
+1. Copy `assets/return-template.docx` (v2, 2026-10-20); never edit the bundled template itself. It contains 27 example/internal-note cells, not a blank form. Read R5 for applicable examples, then clear all 52 response cells in the copy before inserting adopted findings. Its English asset name is internal only and must not become the researcher-facing filename.
 2. Before using the builder, require the A-section header `| 項目 | 対応要否 |` and all 52 application rows in exact template order. After the table, require exactly one footer marker `A．倫理審査申請システム質疑事項` that begins the A/B/C instruction block. The same words may appear in a heading before the table; the builder must ignore pre-table occurrences. The builder maps rows positionally rather than by item number and must stop before copying when rows are missing, duplicated, out of order, use unsupported statuses, or the post-table footer marker is missing or duplicated.
 3. Save the copied return Word inside `99_プレチェック出力/` or `99_プレチェック出力_<label>/` with the exact Japanese pattern `★倫理申請_修正対応依頼_<研究課題名>_<作成日4桁>.docx`. Never accept `return.docx`, another placeholder, or an English filename as final. Replace Windows-forbidden title characters (`\ / : * ? " < > |`) with their full-width equivalents so the study title remains recognizable. Then use `scripts/build_return_docx_from_template.py --template <template> --draft <04.md> --output "<output-folder>/★倫理申請_修正対応依頼_<研究課題名>_<作成日4桁>.docx"`. The builder validates the folder, filename, template shape, row labels and order, statuses, and footer marker before creating or replacing the output.
 4. Verify the requirements in R3 and `references/workflow.md`, including two tables, Table 1 at 52 rows by 2 columns, Table 2 at 1 row by 1 column, preserved page setup and margins, no comments, no tracked changes, correct study title, correct A-item placement, correct B/C filenames, the required Japanese filename, and exact 04-to-Word transfer.
@@ -131,4 +131,4 @@ When a human corrects the returned Word, compare all 52 rows with 04. Update 04 
 - `scripts/precheck_verify.py`: deterministic rule, transfer, DOCX structure, and residue verification
 - `scripts/precheck_usage.py`: deduplicated per-study final token totals or an explicit unavailable record
 - `scripts/build_return_docx_from_template.py`: template-preserving DOCX builder
-- `assets/return-template.docx`: blank institutional return template
+- `assets/return-template.docx`: institutional return template with 27 example/internal-note cells (v2, 2026-10-20)
