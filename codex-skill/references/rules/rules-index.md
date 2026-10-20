@@ -10,7 +10,7 @@
 | `r2-required-content.md` | 記載の欠落を探す検査（C1〜C5） | 6.3 |
 | `r3-format-and-word-qa.md` | 文字列検索で拾う残骸・表記ゆれ（T1〜T4）、返却Wordの自己点検（W-1〜W-11） | 6.2.5、6.7 |
 | `r4-writing-style.md` | 指摘文の構造、使う語・使わない語、項目別の文例 | 6.5 |
-| `r5-office-standard-text.md` | 返却テンプレートに内蔵された事務局の定型文20項目 | 6.5、6.6 |
+| `r5-office-standard-text.md` | 返却テンプレートに内蔵された事務局の定型文27項目 | 6.5、6.6 |
 | `rule-provenance.md` | 各ルールの出典となった案件と件数 | 参照用 |
 | `reverse-validation.md` | ルールが実際に指摘を導出できるかの確認 | 参照用 |
 
