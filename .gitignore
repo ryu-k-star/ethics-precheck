@@ -26,3 +26,9 @@ tools/build_return_docx_*.py
 # Keep generic tools trackable.
 !tools/extract_research_docs.py
 !tools/build_return_docx_from_template.py
+
+# Local mirrors, backups and unrelated generated artifacts
+.codex/
+github-export/
+production-backups/
+tmp_*.png

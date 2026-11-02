@@ -69,13 +69,15 @@ def discover_sources(study: Path) -> tuple[list[Path], list[str]]:
     sources: list[Path] = []
     warnings: list[str] = []
     for path in sorted(study.rglob("*")):
-        if not path.is_file() or path.suffix.lower() not in SOURCE_SUFFIXES:
+        if not path.is_file() or path.name in {"desktop.ini", ".DS_Store"} or path.name.startswith("~$"):
             continue
         rel = path.relative_to(study)
         if is_excluded(rel):
             if path.suffix.lower() in {".pdf", ".docx"}:
                 warnings.append(f"excluded-source-like-file: {rel}")
             continue
+        if path.suffix.lower() not in SOURCE_SUFFIXES:
+            warnings.append(f"unsupported-source-requires-human-review: {rel}")
         sources.append(path)
     return sources, warnings
 
@@ -332,9 +334,33 @@ def main() -> int:
     parser.add_argument("--cache", type=Path, default=Path(".precheck-cache"))
     parser.add_argument("--rules", type=Path, default=default_rules_dir())
     parser.add_argument("--force", action="store_true")
+    parser.add_argument("--legacy-layout", action="store_true", help="Compatibility only: persist the old multi-file layout")
     args = parser.parse_args()
     study = args.study.resolve()
     out = args.out.resolve()
+    if not args.legacy_layout:
+        from precheck_compact import prepare
+        try:
+            result = prepare(study, out, args.cache, args.rules, args.force)
+        except (OSError, ValueError, KeyError) as exc:
+            parser.exit(2, str(exc) + "\n")
+        print(json.dumps(result, ensure_ascii=False))
+        return 0
+    # A repeated invocation must not erase completed human/model review fields.
+    if (out / "00_source_manifest.json").exists():
+        from precheck_packets import load_bundle, compile_rules
+        existing = json.loads((out / "00_source_manifest.json").read_text(encoding="utf-8"))
+        if Path(existing["study"]).resolve() != study:
+            raise SystemExit("Output belongs to another study; use a new output directory")
+        try:
+            bundle = load_bundle(out)
+            compiled, _ = compile_rules(args.rules.resolve(), args.cache.resolve())
+            if bundle["rules_key"] != compiled["key"]:
+                raise ValueError("Selected rules differ from existing packet rules")
+        except (OSError, ValueError, KeyError) as exc:
+            raise SystemExit(f"Existing output retained; use a new output directory: {exc}")
+        print(json.dumps({"output": str(out), "reused_existing_output": True}, ensure_ascii=False))
+        return 0
     out.mkdir(parents=True, exist_ok=True)
     sources, warnings = discover_sources(study)
     if not sources:
@@ -408,6 +434,8 @@ def main() -> int:
         "review_note": "抽出候補であり、原資料頁による照合と文書間比較を省略しない。",
     }
     (out / "00_fact_pack.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+    from precheck_packets import build
+    packet_statistics = build(out, args.rules.resolve(), args.cache.resolve())
     console_summary = {
         "study": study.name,
         "source_count": len(sources),
@@ -417,6 +445,7 @@ def main() -> int:
         "rule_count": len(ledger["rules"]),
         "warning_count": len(warnings),
         "output": str(out),
+        "packets": packet_statistics,
     }
     print(json.dumps(console_summary, ensure_ascii=False))
     return 0

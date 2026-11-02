@@ -4,12 +4,16 @@
 
 この Skill は倫理審査委員会、事務局、法務・コンプライアンス担当者の判断を代替しません。出力は人による確認を前提としたドラフトです。
 
+## 標準手順
+
+通常のプレチェックは [v3手順](docs/precheck_v3_workflow.md) を使用します。返却Word、必要時だけ確認事項.md、内部正本 `_internal/review_state.json` を保存します。担当別報告書や01～07のMarkdownは生成しません。原文・全規則の確認、独立担当、根拠照合、全頁目視、転記検証は維持します。利用量は明示依頼時だけ記録します。
+
 ## 主な機能
 
 - 申請資料、研究計画書、説明・同意文書、オプトアウト文書、質問票などを横断して確認
 - 申請51項目と関連文書の不一致、記載不足、書式残骸をルールID単位で監査
 - 初回申請と再申請の両方に対応し、過去指摘に引きずられないゼロベース確認を実施
-- 根拠資料とページ・項目を付けた Markdown の監査記録を作成
+- 根拠資料とページ・項目を内部正本へ記録
 - 同梱テンプレートの表・枠を保った返却用 DOCX を生成し、転記漏れを検証
 - 不明点、施設判断、根拠不足を断定せず「人間確認事項」として分離
 - 原資料をSHA-256単位で一度だけ抽出し、同一資料の再抽出とサブ担当への全文再投入を抑制
@@ -76,7 +80,7 @@ DOCX の全ページを画像または PDF にレンダリングできる環境�
 
 ```text
 $ethics-precheck を使って C:\research\2026-001 の倫理申請資料をプレチェックしてください。
-根拠箇所を付けた Markdown 一式と、施設テンプレートを保持した返却用 Word のドラフトを作成してください。
+施設テンプレートを保持した返却用Wordと、必要な場合だけ確認事項を作成してください。
 ```
 
 再申請:
@@ -99,20 +103,9 @@ $ethics-precheck で返却用 Word を作成し、可能なら全ページをレ
 標準出力は、研究フォルダ内の新しい `99_プレチェック出力/` に保存します。
 
 ```text
-00_source_manifest.json
-00_extracted_pages.json
-00_timeline_facts.json
-00_r3_hits.json
-00_rule_ledger.json
-00_fact_pack.json
-01_資料一覧.md
-02_研究種別_仮分類.md
-03_サブAI別レビュー結果.md
-04_指摘事項書ドラフト.md
-05_人間確認事項.md
-06_ファクトチェック結果.md
-07_検証結果.json / 07_検証結果.md
 ★倫理申請_修正対応依頼_<研究課題名>_<作成日4桁>.docx
+確認事項.md                 # 人間確認がある場合だけ
+_internal/review_state.json
 ```
 
 既存の原資料、過去出力、同梱テンプレートは上書きしません。
@@ -142,13 +135,15 @@ codex-skill/                 配布する Codex Skill
 rules/                       リポジトリ運用版の日本語ルールブック
 docs/                        品質管理資料
 tools/                       開発・検証用ツールとテスト
-AGENTS.md                    リポジトリ内での詳細運用ルール
+AGENTS.md                    常時参照する運用ルール
 ```
 
 ## 開発者向け検証
 
 ```powershell
 python -m unittest discover -s tools -p "test_*.py"
+python -m unittest discover -s tests -p "test_*.py"
+python tools/sync_precheck_skill.py --check
 python -m py_compile codex-skill/scripts/extract_research_docs.py codex-skill/scripts/precheck_scan.py codex-skill/scripts/precheck_verify.py codex-skill/scripts/precheck_usage.py codex-skill/scripts/build_return_docx_from_template.py
 ```
 
