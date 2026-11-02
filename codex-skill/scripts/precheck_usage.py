@@ -11,13 +11,19 @@ def main() -> None:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--study", required=True)
     parser.add_argument("--session", required=True)
-    parser.add_argument("--role", required=True, choices=["director", "research_ethics", "factcheck", "editor", "other"])
+    parser.add_argument("--role", required=True, choices=["director", "research_ethics", "privacy_consent", "factcheck", "editor", "other"])
     parser.add_argument("--input", type=int)
     parser.add_argument("--cached-input", type=int, default=0)
     parser.add_argument("--output", type=int)
     parser.add_argument("--unavailable-reason")
     parser.add_argument("--source", default="local_rollout_final_total")
     args = parser.parse_args()
+    if args.unavailable_reason:
+        parser.exit(2, "Usage unavailable; no ledger written: " + args.unavailable_reason + "\n")
+    if args.input is None or args.output is None:
+        parser.error("--input and --output are required")
+    if min(args.input, args.output, args.cached_input) < 0 or args.cached_input > args.input:
+        parser.error("Token counts must be nonnegative; cached input is a subset of input")
     payload = {"schema_version": 1, "study": args.study, "entries": []}
     if args.out.exists():
         payload = json.loads(args.out.read_text(encoding="utf-8"))

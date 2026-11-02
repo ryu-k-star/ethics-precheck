@@ -1,4 +1,4 @@
 interface:
   display_name: "倫理申請プレチェック"
   short_description: "臨床研究の倫理申請資料を根拠照合し返却用Wordを作成"
-  default_prompt: "Use $ethics-precheck to audit this Japanese clinical-research ethics application and prepare an evidence-linked review package and return Word draft."
+  default_prompt: "Use $ethics-precheck to review this Japanese clinical-research ethics application and create a return Word draft, human questions only if needed, and one internal review state."

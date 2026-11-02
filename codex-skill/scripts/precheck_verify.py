@@ -127,7 +127,7 @@ def parse_candidates(review: str) -> tuple[list[dict[str, Any]], list[str]]:
             errors.append(f"invalid-finding-id:{finding_id}")
         findings.append({
             "finding_id": finding_id, "finding_type": section,
-            "source_rule_ids": re.findall(r"(?:G|C)\d+-[0-9A-Za-z]+", rule_text),
+            "source_rule_ids": re.findall(r"(?:G|C|T)\d+-[0-9A-Za-z]+", rule_text),
             "item_numbers": sorted(item_numbers(target)) if section == "A" else [],
             "document": target if section == "B" else None,
             "pages": pages, "content": content,
@@ -161,6 +161,10 @@ def parse_draft(draft: str) -> tuple[dict[int, str], str, str]:
 def verify(args: argparse.Namespace) -> dict[str, Any]:
     checks: list[dict[str, Any]] = []
     expected = expected_rule_ids(args.rules)
+    # R3 findings may cite formatting rules without adding them to the R1/R2 ledger.
+    valid_finding_rules = set(expected)
+    for source in args.rules.glob("[Rr]3*.md"):
+        valid_finding_rules.update(re.findall(r"^\|\s*(T\d+-[0-9A-Za-z]+)\s*\|", source.read_text(encoding="utf-8"), re.M))
     ledger = json.loads(args.ledger.read_text(encoding="utf-8"))
     by_id = {row.get("rule_id"): row for row in ledger.get("rules", [])}
     missing = [rid for rid in expected if rid not in by_id]
@@ -196,7 +200,7 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
     draft = args.draft.read_text(encoding="utf-8")
     factcheck = args.factcheck.read_text(encoding="utf-8")
     findings, candidate_errors = parse_candidates(review)
-    unknown_candidate_rules = sorted({rid for finding in findings for rid in finding["source_rule_ids"] if rid not in expected})
+    unknown_candidate_rules = sorted({rid for finding in findings for rid in finding["source_rule_ids"] if rid not in valid_finding_rules})
     empty_candidate_rules = [finding["finding_id"] for finding in findings if not finding["source_rule_ids"]]
     candidate_errors.extend(f"unknown-rule-id:{rid}" for rid in unknown_candidate_rules)
     candidate_errors.extend(f"missing-rule-id:{fid}" for fid in empty_candidate_rules)
@@ -229,7 +233,7 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
         shape_ok = (finding_type == "A" and bool(numbers)) or (finding_type == "B" and bool(document_name))
         if (not raw_finding_id or not reason or evidence_status not in allowed_evidence or route not in allowed_routes
                 or not action_owner or not isinstance(included, bool) or not shape_ok or not isinstance(source_rule_ids, list) or not source_rule_ids
-                or any(rid not in expected for rid in source_rule_ids)
+                or any(rid not in valid_finding_rules for rid in source_rule_ids)
                 or (included and not final_text)):
             invalid_dispositions.append(finding_id)
             continue
@@ -259,7 +263,7 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
                 disposition_numbers = {int(n) for n in disposition.get("item_numbers", []) if str(n).isdigit()}
                 if not expected_numbers or not expected_numbers.issubset(disposition_numbers):
                     transfer_errors.append(f"{fid}:item-mismatch")
-                for number in expected_numbers:
+                for number in disposition_numbers:
                     if not final_text or final_text not in normalize(draft_comments.get(number, "")):
                         transfer_errors.append(f"{fid}:missing-from-04-item-{number}")
             else:
@@ -300,6 +304,10 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
     add(checks, "word.no_tracked_changes", flags["tracked_change_tags"] == 0, str(flags))
     expected_name = expected_word_name(draft, args.word.name)
     add(checks, "word.filename", expected_name is not None and args.word.name.casefold() == expected_name.casefold(), f"expected={expected_name}; actual={args.word.name}")
+    if ledger.get("packet_workflow") or (args.ledger.parent / "00_packet_manifest.json").exists():
+        from precheck_packets import gate
+        packet_result = gate(args.ledger.parent, args.word)
+        add(checks, "packets.coverage_freshness_independence", packet_result["passed"], str(packet_result.get("errors", [])))
     return {"passed": all(c["passed"] for c in checks), "checks": checks}
 
 

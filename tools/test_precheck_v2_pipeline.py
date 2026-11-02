@@ -47,18 +47,19 @@ class PrecheckV2PipelineTests(unittest.TestCase):
             output = study / "99_プレチェック出力_v2"
             cache = base / "cache"
             command = [
-                sys.executable,
+                sys.executable, "-X", "utf8",
                 str(SKILL / "scripts" / "precheck_scan.py"),
                 str(study),
+                "--legacy-layout",
                 "--out",
                 str(output),
                 "--cache",
                 str(cache),
             ]
 
-            first = subprocess.run(command, capture_output=True, text=True)
+            first = subprocess.run(command, capture_output=True, text=True, encoding="utf-8")
             self.assertEqual(first.returncode, 0, first.stderr)
-            second = subprocess.run(command, capture_output=True, text=True)
+            second = subprocess.run(command, capture_output=True, text=True, encoding="utf-8")
             self.assertEqual(second.returncode, 0, second.stderr)
             first_summary = json.loads(first.stdout)
             second_summary = json.loads(second.stdout)
@@ -69,7 +70,7 @@ class PrecheckV2PipelineTests(unittest.TestCase):
 
             self.assertEqual(first_summary["source_count"], 2)
             self.assertEqual(first_summary["cache_hits"], 0)
-            self.assertEqual(second_summary["cache_hits"], 2)
+            self.assertTrue(second_summary["reused_existing_output"])
             self.assertNotIn("fact_candidates", first_summary)
             self.assertNotIn("［試料", first.stdout)
             self.assertEqual(len(ledger["rules"]), 108)

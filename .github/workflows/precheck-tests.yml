@@ -1,0 +1,37 @@
+name: Precheck skill tests
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: codex-skill/requirements.txt
+      - run: python -m pip install -r codex-skill/requirements.txt
+      - name: Existing pipeline and template checks
+        run: python -m unittest discover -s tools -p "test_*.py" -v
+      - name: Compact workflow and human revision checks
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+      - name: Maintained source and package synchronization
+        run: python tools/sync_precheck_skill.py --check
+      - name: Packaged Python syntax
+        run: python -m compileall -q codex-skill/scripts
+      - name: Whitespace errors
+        run: git diff --check
