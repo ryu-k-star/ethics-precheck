@@ -189,6 +189,24 @@ class CompactTests(unittest.TestCase):
         self.factcheck(word)
         self.assertTrue(c.verify(self.out)["passed"])
 
+    def test_preflight_rejects_return_route_for_excluded_finding(self):
+        self.complete_primary(finding=True)
+        disposition = copy.deepcopy(c.read(self.out)["data"]["00_rule_ledger.json"]["dispositions"][0])
+        disposition.update(included_in_return=False, return_route="applicant_return")
+        c.record(self.out, {"role": "director", "dispositions": [disposition]})
+        result = c.preflight(self.out)
+        self.assertFalse(result["passed"])
+        self.assertFalse(next(x for x in result["checks"] if x["id"] == "transfer.non_return_route")["passed"])
+        with self.assertRaisesRegex(ValueError, "transfer.non_return_route"):
+            c.view(self.out, "factcheck")
+        disposition["return_route"] = "human_decision"
+        c.record(self.out, {"role": "director", "dispositions": [disposition]})
+        self.assertTrue(c.preflight(self.out)["passed"])
+        self.factcheck()
+        word = Path(c.render(self.out, "1027")["word"])
+        self.factcheck(word)
+        self.assertTrue(c.verify(self.out)["passed"])
+
     def test_lock_and_failed_build_leave_no_orphan_word(self):
         self.complete_primary()
         self.factcheck()

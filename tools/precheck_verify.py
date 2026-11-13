@@ -247,6 +247,7 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
     add(checks, "disposition.coverage", not coverage_errors, f"errors={coverage_errors}")
     transfer_errors: list[str] = []
     routing_errors: list[str] = []
+    invalid_non_return_routes: list[str] = []
     for finding in findings:
         fid = finding["finding_id"]
         disposition = dispositions_by_id.get(fid)
@@ -274,6 +275,8 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
                     transfer_errors.append(f"{fid}:missing-from-04-B")
         else:
             route = disposition.get("return_route")
+            if route not in non_return_routes:
+                invalid_non_return_routes.append(f"{fid}:route={route}")
             if route not in non_return_routes or fid not in factcheck:
                 routing_errors.append(f"{fid}:route={route}:recorded_in_06={fid in factcheck}")
     add(checks, "transfer.findings_to_04", not transfer_errors, f"errors={transfer_errors}")
@@ -281,8 +284,10 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
 
     if getattr(args, "preflight", False):
         # The independent factcheck has not happened yet. Its record is checked
-        # at final verification, not fabricated to make this early gate pass.
+        # at final verification, while invalid routes are checked immediately.
         checks = [c for c in checks if c["id"] != "transfer.non_return_recorded"]
+        add(checks, "transfer.non_return_route", not invalid_non_return_routes,
+            f"errors={invalid_non_return_routes}")
         return {"passed": all(c["passed"] for c in checks), "checks": checks}
 
     document = Document(args.word)
