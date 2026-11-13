@@ -47,6 +47,10 @@ Independent final factcheck, all-page Word visual inspection and verifier PASS a
 
 Resubmissions retain independent zero-based review followed by prior-finding reconciliation. Human-edited Word requires all-52-row reconciliation and explicit disposition reasons; never overwrite it or mechanically restore removed findings.
 
+After the independent review, reconcile the actual prior human-edited return and every referenced attachment with the current originals. Record resolved, partially resolved, unresolved, new contradiction, or unconfirmed for each prior issue. If a referenced attachment is unavailable, keep its contents and response status unconfirmed; never infer resolution. Apply current facility UI rules even where an earlier request conflicts with them.
+
+When there are no adopted corrections, do not imply that corrections or re-upload are required. The current generator can leave generic correction and re-upload instructions in a zero-finding Word: inspect the actual document and explicitly flag that limitation to the user, withholding it from researcher-facing return until the wording is made consistent and independently rechecked. A verifier PASS alone does not detect this semantic problem or replace substantive review.
+
 The first passing verification freezes the delivered AI wording in review_state.json under ai_initial. Preserve it permanently within the case; never replace it with edited wording. Humans edit the Word only. Use precheck_compact.py compare-human --out OUTPUT --word EDITED.docx to append before/after changes to human_revision_history in that same file. Review reasons and routing before adopting a change as a training example or updating rules. Comparisons do not train a model, upload data or approve a revised Word. Structural changes and tracked changes require explicit review. See the human revision section in the standard workflow.
 
 Do not produce usage ledgers in ordinary cases. Explicit usage audits alone record final cumulative input, cached input and output; do not sum intermediate totals or infer missing values. File counts and character counts are not measured subscription-usage savings.

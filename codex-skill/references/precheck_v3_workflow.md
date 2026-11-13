@@ -76,7 +76,15 @@ python tools/precheck_compact.py record --out OUTPUT --input OUTPUT/_internal/�
 
 親はrole=directorの記録を一度返す。指定できる項目はtitle、dispositions、human_notes、timeline_review_fields、必要時のtemplate。dispositionsの形式は従来どおり、指摘識別子・対象項目・資料・根拠状態・対応経路・対応主体・採否理由・final_textを保持する。確定文はfinal_textに一度だけ記載する。候補を外す場合も理由を残す。規則の判定自体を変える場合は該当担当の記録を修正して再取り込みする。
 
-期間は最終登録後の追跡・解析まで確認し、資料にない値を作らない。timeline_review_fieldsには元の項目をすべて保持して確認結果を記録する。人間判断はhuman_notesへ残す。
+期間は最終登録後の追跡・解析まで確認し、資料にない値を作らない。後ろ向き研究でもG6-2は非該当とせず、情報抽出・解析が研究終了まで可能か確認する。根拠が不足すればhumanとし、前向きの登録・追跡を推測しない。timeline_review_fieldsには元の項目をすべて保持して確認結果を記録する。人間判断はhuman_notesへ残す。
+
+独立照合を依頼する前に、最終検証と共通の規則・期間・候補転記の機械確認を実行する。
+
+```powershell
+python tools/precheck_compact.py preflight --out OUTPUT
+```
+
+不合格なら出力内容を担当記録に反映し、合格後に独立照合へ進む。preflightは資料の読み直しや独立照合の代替ではない。factcheck表示とWord生成の際にも自動実行される。Word生成後に問題が見つかった場合も、人手修正・既存文書を保護し、再実施が必要な範囲だけを確認する。独立確認を省略したり、検証記録を推測で流用したりしない。
 
 ## 4. 独立照合とWord生成
 

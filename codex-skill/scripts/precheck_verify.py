@@ -279,6 +279,12 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
     add(checks, "transfer.findings_to_04", not transfer_errors, f"errors={transfer_errors}")
     add(checks, "transfer.non_return_recorded", not routing_errors, f"errors={routing_errors}")
 
+    if getattr(args, "preflight", False):
+        # The independent factcheck has not happened yet. Its record is checked
+        # at final verification, not fabricated to make this early gate pass.
+        checks = [c for c in checks if c["id"] != "transfer.non_return_recorded"]
+        return {"passed": all(c["passed"] for c in checks), "checks": checks}
+
     document = Document(args.word)
     add(checks, "word.table_count", len(document.tables) == 2, f"actual={len(document.tables)}")
     if len(document.tables) >= 2:

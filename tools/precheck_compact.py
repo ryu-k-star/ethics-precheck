@@ -172,6 +172,28 @@ def factcheck_packet(state, stage, word=None):
     return result
 
 
+def preflight_stage(state, stage):
+    """Run the same pre-Word checks used by final verification."""
+    return verify_views(argparse.Namespace(
+        rules=Path(state["rules"]), timeline=stage / "00_timeline_facts.json",
+        ledger=stage / "00_rule_ledger.json", review=stage / "03_サブAI別レビュー結果.md",
+        draft=stage / "04_指摘事項書ドラフト.md", factcheck=stage / "06_ファクトチェック結果.md",
+        preflight=True))
+
+
+def require_preflight(state, stage):
+    result = preflight_stage(state, stage)
+    failures = [f"{c['id']}: {c['detail']}" for c in result["checks"] if not c["passed"]]
+    if failures:
+        raise ValueError("Preflight failed: " + "; ".join(failures))
+
+
+def preflight(out):
+    state = read(out)
+    with materialize(state, documents=True) as stage:
+        return preflight_stage(state, stage)
+
+
 def view(out, role, template=False, ids=None, query=None, word=None):
     state = read(out)
     before = p.object_hash(state)
@@ -200,6 +222,8 @@ def view(out, role, template=False, ids=None, query=None, word=None):
             return (stage / result["packet"]).read_text(encoding="utf-8")
         if role != "factcheck":
             raise ValueError("Unknown view")
+        if not word:
+            require_preflight(state, stage)
         if word and state.get("word") != str(word.resolve()):
             raise ValueError("Use the Word generated for this output")
         result = factcheck_packet(state, stage, word)
@@ -293,6 +317,7 @@ def render(out, date):
     if len(date) != 4 or not date.isdigit():
         raise ValueError("Provide a four-digit MMDD date")
     with materialize(state, documents=True) as stage:
+        require_preflight(state, stage)
         preliminary = state["checks"].get("preliminary")
         if not preliminary:
             raise ValueError("Independent preliminary factcheck required")
@@ -364,7 +389,7 @@ def compare_human(out, word):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["view", "record", "render", "verify", "compare-human"])
+    parser.add_argument("command", choices=["view", "record", "preflight", "render", "verify", "compare-human"])
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--role", default="ledger")
     parser.add_argument("--template", action="store_true")
@@ -390,6 +415,8 @@ def main():
             result = record(args.out, p.read_json(args.input))
             if args.consume:
                 args.input.unlink()
+        elif args.command == "preflight":
+            result = preflight(args.out)
         elif args.command == "render":
             result = render(args.out, args.date or "")
         elif args.command == "compare-human":
