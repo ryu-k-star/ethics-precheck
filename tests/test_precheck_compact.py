@@ -166,6 +166,47 @@ class CompactTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             c.view(self.out, "research_ethics")
 
+    def test_preflight_catches_core_duration_before_factcheck_or_word(self):
+        self.complete_primary()
+        receipt = copy.deepcopy(c.read(self.out)["receipts"]["research_ethics"])
+        row = next(r for r in receipt["rules"] if r["rule_id"] == "G6-2")
+        row.update(status="na", note="前向き追跡なし")
+        c.record(self.out, receipt)
+        result = c.preflight(self.out)
+        self.assertFalse(result["passed"])
+        self.assertFalse(next(x for x in result["checks"] if x["id"] == "duration.core_applicable")["passed"])
+        with self.assertRaisesRegex(ValueError, "duration.core_applicable"):
+            c.view(self.out, "factcheck")
+        with self.assertRaisesRegex(ValueError, "duration.core_applicable"):
+            c.render(self.out, "1027")
+        self.assertFalse(list(self.out.glob("*.docx")))
+        self.assertFalse((self.out / "確認事項.md").exists())
+        row.update(status="human", note="解析完了見込みは未確認")
+        c.record(self.out, receipt)
+        self.assertTrue(c.preflight(self.out)["passed"])
+        self.factcheck()
+        word = Path(c.render(self.out, "1027")["word"])
+        self.factcheck(word)
+        self.assertTrue(c.verify(self.out)["passed"])
+
+    def test_preflight_rejects_return_route_for_excluded_finding(self):
+        self.complete_primary(finding=True)
+        disposition = copy.deepcopy(c.read(self.out)["data"]["00_rule_ledger.json"]["dispositions"][0])
+        disposition.update(included_in_return=False, return_route="applicant_return")
+        c.record(self.out, {"role": "director", "dispositions": [disposition]})
+        result = c.preflight(self.out)
+        self.assertFalse(result["passed"])
+        self.assertFalse(next(x for x in result["checks"] if x["id"] == "transfer.non_return_route")["passed"])
+        with self.assertRaisesRegex(ValueError, "transfer.non_return_route"):
+            c.view(self.out, "factcheck")
+        disposition["return_route"] = "human_decision"
+        c.record(self.out, {"role": "director", "dispositions": [disposition]})
+        self.assertTrue(c.preflight(self.out)["passed"])
+        self.factcheck()
+        word = Path(c.render(self.out, "1027")["word"])
+        self.factcheck(word)
+        self.assertTrue(c.verify(self.out)["passed"])
+
     def test_lock_and_failed_build_leave_no_orphan_word(self):
         self.complete_primary()
         self.factcheck()
